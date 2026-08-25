@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "echo 'Server build complete'",
+    "build": "mkdir dist || true",
     "seed": "node src/utils/seeder.js",
     "seed:large": "node src/utils/seedLargeProperties.js"
   },
