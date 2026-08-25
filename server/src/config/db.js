@@ -43,9 +43,8 @@ const connectDB = async () => {
     // Don't kill the process in Vercel serverless environment
     if (process.env.VERCEL !== '1') {
       process.exit(1);
-    } else {
-      throw error;
     }
+    // We don't throw here to avoid Unhandled Promise Rejections crashing Vercel
   }
 };
 
