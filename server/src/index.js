@@ -240,11 +240,17 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  console.log(`🚀 Real Estate API Server running on port ${PORT}`);
-  console.log(`📧 Email config — GMAIL_USER: ${process.env.GMAIL_USER ? '✅ set (' + process.env.GMAIL_USER + ')' : '❌ NOT SET (using fallback)'}`);
-  console.log(`📧 Email config — GMAIL_PASS: ${process.env.GMAIL_PASS ? '✅ set (hidden)' : '❌ NOT SET (using fallback)'}`);
-  console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
-  console.log(`🔗 CLIENT_URL: ${process.env.CLIENT_URL || 'not set (using production fallback)'}`);
-});
+// Only listen when not in Vercel environment
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, () => {
+    console.log(`🚀 Real Estate API Server running on port ${PORT}`);
+    console.log(`📧 Email config — GMAIL_USER: ${process.env.GMAIL_USER ? '✅ set (' + process.env.GMAIL_USER + ')' : '❌ NOT SET (using fallback)'}`);
+    console.log(`📧 Email config — GMAIL_PASS: ${process.env.GMAIL_PASS ? '✅ set (hidden)' : '❌ NOT SET (using fallback)'}`);
+    console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+    console.log(`🔗 CLIENT_URL: ${process.env.CLIENT_URL || 'not set (using production fallback)'}`);
+  });
+}
+
+// Export the app for Vercel Serverless Functions
+module.exports = app;
 

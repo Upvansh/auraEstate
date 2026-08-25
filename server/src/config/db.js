@@ -40,8 +40,12 @@ const connectDB = async () => {
   } catch (error) {
     console.error('❌ MongoDB Connection Failed:', error.message);
     mongoose.set('bufferCommands', false);
-    // Exit process with failure since this is the primary database
-    process.exit(1);
+    // Don't kill the process in Vercel serverless environment
+    if (process.env.VERCEL !== '1') {
+      process.exit(1);
+    } else {
+      throw error;
+    }
   }
 };
 
