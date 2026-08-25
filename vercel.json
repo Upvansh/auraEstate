@@ -19,7 +19,7 @@
       "dest": "/server/src/index.js"
     },
     {
-      "src": "/(.*\.(js|css|ico|svg|png|jpg|jpeg|gif|woff|woff2|ttf|eot))$",
+      "src": "/(.*\\.(js|css|ico|svg|png|jpg|jpeg|gif|woff|woff2|ttf|eot))$",
       "dest": "/client/$1"
     },
     {
