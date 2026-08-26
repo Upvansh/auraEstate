@@ -3,11 +3,7 @@ const Property = require('../models/Property');
 const { analyzeListingFraud, calculateAIValuation, generatePropertyAppraisal } = require('../utils/aiEngine');
 const { sampleProperties } = require('../utils/seedData');
 const { sendPropertySubmissionEmail } = require('../services/emailService');
-const {
-  getSupabaseProperties,
-  getSupabasePropertyById,
-  getSimilarSupabaseProperties
-} = require('../services/supabasePropertyService');
+// Supabase service removed
 
 const sellerUser = {
   _id: '507f1f77bcf86cd799439003',
@@ -40,25 +36,93 @@ const mockDbProperties = sampleProperties.map((p, idx) => ({
   agentId: idx % 2 !== 0 ? agentUser : null
 }));
 
-// @desc    Get all properties from Supabase with filtering, search, pagination & sorting
+// @desc    Get all properties with filtering, search, pagination & sorting
 // @route   GET /api/properties
 const getProperties = async (req, res, next) => {
   try {
-    const result = await getSupabaseProperties(req.query);
+    const {
+      search,
+      suburb,
+      city,
+      propertyType,
+      listingType,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      bathrooms,
+      state,
+      page = 1,
+      limit = 12,
+      sortBy
+    } = req.query;
+
+    let query = {};
+    
+    // Price filters
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    if (bedrooms) query.bedrooms = { $gte: Number(bedrooms) };
+    if (bathrooms) query.bathrooms = { $gte: Number(bathrooms) };
+    if (propertyType) query.propertyType = propertyType;
+    if (listingType) query.listingType = listingType;
+    if (state) query['address.state'] = new RegExp(state, 'i');
+    if (suburb) query['address.suburb'] = new RegExp(suburb, 'i');
+    if (city) query['address.city'] = new RegExp(city, 'i');
+    
+    if (search) {
+      query.$or = [
+        { title: new RegExp(search, 'i') },
+        { description: new RegExp(search, 'i') },
+        { 'address.street': new RegExp(search, 'i') },
+        { 'address.suburb': new RegExp(search, 'i') }
+      ];
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    let sortObj = { createdAt: -1 };
+    if (sortBy === 'price_asc') sortObj = { price: 1 };
+    else if (sortBy === 'price_desc') sortObj = { price: -1 };
+    else if (sortBy === 'oldest') sortObj = { createdAt: 1 };
+
+    const total = await Property.countDocuments(query);
+    const properties = await Property.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNum)
+      .populate('agentId', 'name email avatar phone')
+      .populate('agencyId', 'name logo reviewCount rating');
+
     res.json({
       success: true,
-      ...result
+      properties,
+      total,
+      totalPages: Math.ceil(total / limitNum) || 1,
+      currentPage: pageNum,
+      count: properties.length
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get single property details from Supabase
+// @desc    Get single property details
 // @route   GET /api/properties/:id
 const getPropertyById = async (req, res, next) => {
   try {
-    const property = await getSupabasePropertyById(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    const property = await Property.findById(req.params.id)
+      .populate('agentId', 'name email avatar phone')
+      .populate('agencyId', 'name logo reviewCount rating');
 
     if (!property) {
       return res.status(404).json({ success: false, message: 'Property not found' });
@@ -235,11 +299,27 @@ const updatePropertyStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Get similar properties from Supabase
+// @desc    Get similar properties
 // @route   GET /api/properties/:id/similar
 const getSimilarProperties = async (req, res, next) => {
   try {
-    const similar = await getSimilarSupabaseProperties(req.params.id, 3);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    const sourceProperty = await Property.findById(req.params.id);
+    if (!sourceProperty) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    const similar = await Property.find({
+      'address.state': sourceProperty.address.state,
+      _id: { $ne: sourceProperty._id }
+    })
+      .limit(3)
+      .populate('agentId', 'name email avatar phone')
+      .populate('agencyId', 'name logo reviewCount rating');
+
     res.json({ success: true, properties: similar });
   } catch (error) {
     next(error);
@@ -254,10 +334,6 @@ const generateAppraisal = async (req, res, next) => {
 
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
       subjectProperty = await Property.findById(req.params.id).lean();
-    }
-    
-    if (!subjectProperty) {
-      subjectProperty = await getSupabasePropertyById(req.params.id);
     }
 
     if (!subjectProperty) {
