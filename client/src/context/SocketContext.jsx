@@ -12,6 +12,8 @@ export const SocketProvider = ({ children }) => {
     const getSocketTarget = () => {
       const envUrl = import.meta.env.VITE_API_URL;
       if (envUrl) {
+        // Disable socket.io if backend is hosted on Vercel (serverless doesn't support websockets)
+        if (envUrl.includes('vercel.app')) return null;
         return envUrl.replace(/\/api\/?$/, '');
       }
       if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
@@ -20,7 +22,10 @@ export const SocketProvider = ({ children }) => {
       return 'https://auraestate.onrender.com';
     };
 
-    const newSocket = io(getSocketTarget(), {
+    const targetUrl = getSocketTarget();
+    if (!targetUrl) return; // Don't initialize socket on Vercel
+
+    const newSocket = io(targetUrl, {
       transports: ['websocket', 'polling']
     });
 
