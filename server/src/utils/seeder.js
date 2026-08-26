@@ -16,6 +16,11 @@ const { sampleUsers, sampleAgencies, sampleProperties, sampleBlogs } = require('
 
 dotenv.config();
 
+const dns = require('dns');
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (dnsErr) {}
+
 const seedDB = async () => {
   try {
     let mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/realestate_db';
